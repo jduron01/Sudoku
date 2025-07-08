@@ -1,2 +1,2 @@
 # Sudoku
-Basic Sudoku web application created using React and ASP.NET Core.
+Sudoku web application created to learn and practice with React and ASP.NET Core web API to continue using in future projects.
