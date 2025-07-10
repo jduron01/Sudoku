@@ -80,15 +80,15 @@ namespace Sudoku.Controllers
 
             if (board.Difficulty is "easy")
             {
-                InitBoard(board.Grid, 35);
+                GeneratePuzzle(board.Grid, 35);
             }
             else if (board.Difficulty is "normal")
             {
-                InitBoard(board.Grid, 25);
+                GeneratePuzzle(board.Grid, 25);
             }
             else
             {
-                InitBoard(board.Grid, 20);
+                GeneratePuzzle(board.Grid, 20);
             }
 
             _context.Boards.Add(board);
@@ -118,48 +118,104 @@ namespace Sudoku.Controllers
             return _context.Boards.Any(e => e.Id == id);
         }
 
-        private static void InitBoard(int[][] grid, int numGivens)
+        private static void GeneratePuzzle(int[][] grid, int numGivens)
         {
             Random rand = new();
-            int maxAttempts = numGivens * 20;
-            int attempts = 0;
-            int placed = 0;
 
-            while (attempts < maxAttempts && placed < numGivens)
+            FillDiagonalBoxes(grid, rand);
+            ValidatePuzzle(grid, rand);
+            RemoveNumbers(grid, numGivens, rand);
+        }
+
+        private static void FillDiagonalBoxes(int[][] grid, Random rand)
+        {
+            for (int cell = 0; cell < 9; cell += 3)
             {
-                int row = rand.Next(9);
-                int col = rand.Next(9);
+                int[] nums = [.. Enumerable.Range(1, 9).OrderBy(_ => rand.Next())];
+                int index = 0;
 
-                if (grid[row][col] != 0)
+                for (int i = 0; i < 3; i++)
                 {
-                    attempts++;
-                    continue;
-                }
-
-                List<int> candidates = [];
-
-                for (int n = 0; n < 9; n++)
-                {
-                    if (!IsInRow(grid, row, n) &&
-                        !IsInCol(grid, col, n) &&
-                        !IsInBox(grid, row, col, n))
+                    for (int j = 0; j < 3; j++)
                     {
-                        candidates.Add(n);
+                        grid[cell + i][cell + j] = nums[index++];
                     }
                 }
-
-                if (candidates.Count == 0)
-                {
-                    attempts++;
-                    continue;
-                }
-
-                int val = candidates[rand.Next(candidates.Count)];
-
-                grid[row][col] = val;
-                attempts = 0;
-                placed++;
             }
+        }
+
+        private static bool ValidatePuzzle(int[][] grid, Random rand)
+        {
+            (int row, int col)? cell = FindEmptyCell(grid);
+
+            if (cell == null)
+            {
+                return true;
+            }
+
+            (int row, int col) = cell.Value;
+            int[] nums = [.. Enumerable.Range(1, 9).OrderBy(_ => rand.Next())];
+
+            foreach (int n in nums)
+            {
+                if (IsSafe(grid, row, col, n))
+                {
+                    grid[row][col] = n;
+
+                    if (ValidatePuzzle(grid, rand))
+                    {
+                        return true;
+                    }
+
+                    grid[row][col] = 0;
+                }
+            }
+
+            return false;
+        }
+
+        public static void RemoveNumbers(int[][] grid, int numGivens, Random rand)
+        {
+            int numToRemove = 81 - numGivens;
+            List<(int row, int col)> positions = [];
+
+            for (int row = 0; row < 9; row++)
+            {
+                for (int col = 0; col < 9; col++)
+                {
+                    positions.Add((row, col));
+                }
+            }
+
+            positions = [.. positions.OrderBy(_ => rand.Next())];
+
+            for (int i = 0; i < numToRemove && i < positions.Count; i++)
+            {
+                (int row, int col) = positions[i];
+                grid[row][col] = 0;
+            }
+        }
+
+        private static (int row, int col)? FindEmptyCell(int[][] grid)
+        {
+            for (int row = 0; row < 9; row++)
+            {
+                for (int col = 0; col < 9; col++)
+                {
+                    if (grid[row][col] == 0)
+                    {
+                        return (row, col);
+                    }
+                }
+            }
+            return null;
+        }
+
+        private static bool IsSafe(int[][] grid, int row, int col, int num)
+        {
+            return !IsInRow(grid, row, num) &&
+                   !IsInCol(grid, col, num) &&
+                   !IsInBox(grid, row, col, num);
         }
 
         private static bool IsInRow(int[][] grid, int row, int val)
